@@ -25,9 +25,9 @@ services:
       - "1099:1099"
     environment:
       - JAVA_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9010 -Dcom.sun.management.jmxremote.rmi.port=1099 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost
-      - JAVA_TOOL_OPTIONS=-javaagent:/opt/opentelemetry-javaagent.jar
-      - OTEL.EXPORTER.OTLP.ENDPOINT=http://ht-otel-collector:4318
-      - OTEL_SERVICE_NAME=tomcat-service
+      # - JAVA_TOOL_OPTIONS=-javaagent:/opt/opentelemetry-javaagent.jar
+      # - OTEL.EXPORTER.OTLP.ENDPOINT=http://ht-otel-collector:4318
+      # - OTEL_SERVICE_NAME=tomcat-service
     depends_on:
       - ht-mysql
       - ht-python-service
