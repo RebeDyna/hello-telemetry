@@ -17,12 +17,12 @@ RUN opentelemetry-bootstrap -a install
 COPY . .
 
 # Use Opentelemetry environment variables to enable logging. In development for Python
-ENV OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
-ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://ht-otel-collector:4317
+# ENV OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+# ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://ht-otel-collector:4317
 
 # Expose the port that the application will run on
 EXPOSE 5000
 
 # Define the command to run the application
-CMD [ "opentelemetry-instrument", "--service_name", "python-service", "python", "compute.py"]
-# CMD [ "python", "compute.py"]
+# CMD [ "opentelemetry-instrument", "--service_name", "python-service", "python", "compute.py"]
+CMD [ "python", "compute.py"]
