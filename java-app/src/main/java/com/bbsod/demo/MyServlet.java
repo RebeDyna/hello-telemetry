@@ -27,8 +27,18 @@ import org.apache.http.util.EntityUtils;
 
 public class MyServlet extends HttpServlet {
 
+    //Define Class Fields
+    private static final String INSTRUMENTATION_NAME = MyServlet.class.getName();
+    private final Meter meter;
+    prvate final LongCounter requestCounter;
+    
     // Constructor
     public MyServlet() {
+        OpenTelemetry openTelemetry = initOpenTelemetry();
+        this.meter = openTelemetry.getMeter(INSTRUMENTATION_NAME);
+        this.requestCounter = meter.counterBuilder(name:"app.db.db_requests")
+            .setDescription(description:"Count DB requests")
+            .build();
     }
 
     static OpenTelemetry initOpenTelemetry(){
@@ -77,6 +87,7 @@ public class MyServlet extends HttpServlet {
         }
 
         // Establish database connection and get data
+        requestCounter.add(value:1);
 
         // JDBC connection parameters
         String jdbcUrl = "jdbc:mysql://ht-mysql:3306/mydatabase";
