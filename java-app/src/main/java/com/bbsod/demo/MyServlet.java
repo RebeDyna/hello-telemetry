@@ -31,6 +31,36 @@ public class MyServlet extends HttpServlet {
     public MyServlet() {
     }
 
+    static OpenTelemetry initOpenTelemetry(){
+        //Setup the resource with service.name
+        Resource resource = Resource.create(Attributes.of(AttributeKey.stringKey("service.name"), Value:"tomcat-service"));
+        
+        //Metrics
+        
+        OtlpGrpcMetricExporter otlpGrpcMetricExporter = OtlpGrpcMetricExporter.builder()
+            .setEndpoint(endpoint:"http://ht-otel-collector:4318")
+            .build();
+        
+        PeriodicMetricReader periodicMetricReader = PeriodicMetricReader.builder(otlpGrpcMetricExporter)
+            .setInterval(java.time.Duration.ofSeconds(seconds:10))
+            .build();
+        
+        SdkMeterProvider sdkMeterProvider = SdkMeterProvider.builder()
+            .setResource(resource)
+            .registerMetricReader(periodicMetricReader)
+            .build();
+
+        OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
+            .setMetricProvider(sdkMeterProvider)
+            .build();
+
+        //Cleanup
+        Runtime.getRuntime().addShutdownHook(new Thread(sdk::close));
+
+        return sdk;
+    
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
