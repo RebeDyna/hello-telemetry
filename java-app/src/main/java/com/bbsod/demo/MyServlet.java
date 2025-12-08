@@ -31,6 +31,7 @@ public class MyServlet extends HttpServlet {
     private static final String INSTRUMENTATION_NAME = MyServlet.class.getName();
     private final Meter meter;
     prvate final LongCounter requestCounter;
+    private final Tracer tracer;
     
     // Constructor
     public MyServlet() {
@@ -39,6 +40,8 @@ public class MyServlet extends HttpServlet {
         this.requestCounter = meter.counterBuilder(name:"app.db.db_requests")
             .setDescription(description:"Count DB requests")
             .build();
+
+        this.tracer = openTelemetry.getTracer(INSTRUMENTATION_NAME);
     }
 
     static OpenTelemetry initOpenTelemetry(){
@@ -60,8 +63,22 @@ public class MyServlet extends HttpServlet {
             .registerMetricReader(periodicMetricReader)
             .build();
 
+        //Traces
+        OtlpGrpcSpanExporter otlpGrpcSpanExporter = OtlpGrpcSpanExporter.builder()
+            .setEndpoint(endpoint:"http://ht-otel-collector:4318")
+            .build();
+        
+        simpleSpanProcessor SimpleSpanProcessor= SimpleSpanProcessor.builder(otlpGrpcSpanExporter).build();
+        
+        SdkTracerProvider sdkTracerProvider = SdkTracerProvider.builder()
+            .setResource(resource)
+            .addSpanProcessor(simpleSpanProcessor)
+            .build();
+            
+
         OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
             .setMetricProvider(sdkMeterProvider)
+            .setTracerProvider(sdkTracerProvider)
             .build();
 
         //Cleanup
@@ -79,15 +96,21 @@ public class MyServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         response.setContentType("text/html");
 
+        Span sleepSpan = tracer.spanBuilder(spanName:"SleepForTwoSeconds").startSpan();
+                
         // Sleep for 2 seconds
         try {
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            sleepSpan.end();
         }
 
         // Establish database connection and get data
         requestCounter.add(value:1);
+
+        Span dbSpan = tracer.spanBuilder(spanName:"DatabaseConnection").startSpan();
 
         // JDBC connection parameters
         String jdbcUrl = "jdbc:mysql://ht-mysql:3306/mydatabase";
@@ -139,6 +162,8 @@ public class MyServlet extends HttpServlet {
         } catch (Exception e) {
             e.printStackTrace();
             out.println("<h2>Error: " + e.getMessage() + "</h2>");
+        } finally{
+             dbSpan.end();
         }
 
         // Make a request to the Python microservice
@@ -149,6 +174,9 @@ public class MyServlet extends HttpServlet {
     }
 
     private String getAverageAge(List<JSONObject> dataList) throws IOException {
+
+        Span computeSpan = tracer.spanBuilder(spanName:"ComputeRequest").startSpan();
+        
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpPost httpPost = new HttpPost("http://ht-python-service:5000/compute_average_age");
             httpPost.setHeader("Content-Type", "application/json");
@@ -164,6 +192,8 @@ public class MyServlet extends HttpServlet {
                 JSONObject responseJson = new JSONObject(responseString);
                 return responseJson.get("average_age").toString();
             }
+        } finally {
+            computeSpan.end();
         }
     }
 }
