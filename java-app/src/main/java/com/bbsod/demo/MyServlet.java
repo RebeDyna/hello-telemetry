@@ -88,6 +88,8 @@ public class MyServlet extends HttpServlet {
     
     }
 
+    Context parentContext;
+    
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -96,7 +98,16 @@ public class MyServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         response.setContentType("text/html");
 
-        Span sleepSpan = tracer.spanBuilder(spanName:"SleepForTwoSeconds").startSpan();
+        // Create a new Parent Span
+        Span parentSpan = tracer.spanBuilder(spanName:"GET").setNoParent().startSpan();
+        parentSpan.makeCurrent();
+
+        parentContext = Context.current().with(parentSpan);
+
+        Span sleepSpan = tracer.spanBuilder(spanName:"SleepForTwoSeconds")
+            .setSpanKind(spanKind.INTERNAL)
+            .setParent(parentContext)
+            .startSpan();
                 
         // Sleep for 2 seconds
         try {
@@ -110,7 +121,10 @@ public class MyServlet extends HttpServlet {
         // Establish database connection and get data
         requestCounter.add(value:1);
 
-        Span dbSpan = tracer.spanBuilder(spanName:"DatabaseConnection").startSpan();
+        Span dbSpan = tracer.spanBuilder(spanName:"DatabaseConnection")
+            .setSpanKind(spanKind.CLIENT)
+            .setParent(parentContext)
+            .startSpan();
 
         // JDBC connection parameters
         String jdbcUrl = "jdbc:mysql://ht-mysql:3306/mydatabase";
@@ -175,7 +189,12 @@ public class MyServlet extends HttpServlet {
 
     private String getAverageAge(List<JSONObject> dataList) throws IOException {
 
-        Span computeSpan = tracer.spanBuilder(spanName:"ComputeRequest").startSpan();
+        Span computeSpan = tracer.spanBuilder(spanName:"ComputeRequest")
+            .setSpanKind(spanKind.CLIENT)
+            .setParent(parentContext)
+            .startSpan();
+
+        Context context = Context.current().with(computeSpan);
         
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpPost httpPost = new HttpPost("http://ht-python-service:5000/compute_average_age");
@@ -187,6 +206,10 @@ public class MyServlet extends HttpServlet {
             StringEntity entity = new StringEntity(requestData.toString());
             httpPost.setEntity(entity);
 
+            // W3CTraceContext
+            W3CTraceContextPropagator propagator = WwCTraceContextPropagator.getInstance();
+            propagator.inject(context, httpPost, HttpPost::setHeader);
+            
             try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
                 String responseString = EntityUtils.toString(response.getEntity());
                 JSONObject responseJson = new JSONObject(responseString);
