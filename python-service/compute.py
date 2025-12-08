@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 
 # OpenTelemetry SDK
 from opentelemetry.sdk.metrics import MeterProvider, Meter
-from opentelemetry import metrics,trace
+from opentelemetry import metrics,trace, _logs
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -25,35 +25,36 @@ resource = Resource.create(ResourceAttributes.SERVICE_NAME:"python-service")
 # Initialize OpenTelemetry SDK
 
 # Metrics
-metricExporter = OTLPMetricExporter(endpoint="http://ht-otel-collector:4317", insecure=True)
-metricReader = PeriodicExportingMetricReader(metricExporter, export_interval_millis=10000)
-meterProvider = MetricProvider(resource=resource,metric_readers=[metricReader])
-metrics.set_meter_provider(meterProvider)
+# metricExporter = OTLPMetricExporter(endpoint="http://ht-otel-collector:4317", insecure=True)
+# metricReader = PeriodicExportingMetricReader(metricExporter, export_interval_millis=10000)
+# meterProvider = MetricProvider(resource=resource,metric_readers=[metricReader])
+# metrics.set_meter_provider(meterProvider)
 meter = metrics.get_meter(__name__)
-
 compute_request_count = mter.create_counter(name='app_compute_request_count', description='Counts the requests to compute-service", unit='1')
 
 # Traces
-span_exporter = OTLPSpanExportger(endpoint="http://ht-otel-collector:4317", insecure=True)
-span_processor = BatchSpanProcessor(span_exporter)
-tracer_provider = TraceProvider(resource=resource)
-tracer_provider,add_span_processor(span_processor)
-trace.set_tracer_provider(tracer_provider)
+# span_exporter = OTLPSpanExportger(endpoint="http://ht-otel-collector:4317", insecure=True)
+# span_processor = BatchSpanProcessor(span_exporter)
+# tracer_provider = TraceProvider(resource=resource)
+# tracer_provider,add_span_processor(span_processor)
+# trace.set_tracer_provider(tracer_provider)
 
 tracer = trace.get_tracer(__name__)
 
 # Logs
-log_exporter = OTLPLogExportger(endpoint="http://ht-otel-collector:4317", insecure=True)
-log_processor = BatchLogRecordProcessor(log_exporter)
-logger_provider = LoggerProvider(resource=resource)
-set_logger_provider(logger_provider)
-handler = LoggingHandler(level=logging.NOTSET,logger_provider=Logger_provider)
+# log_exporter = OTLPLogExportger(endpoint="http://ht-otel-collector:4317", insecure=True)
+# log_processor = BatchLogRecordProcessor(log_exporter)
+# logger_provider = LoggerProvider(resource=resource)
+# set_logger_provider(logger_provider)
+# handler = LoggingHandler(level=logging.NOTSET,logger_provider=Logger_provider)
 
-# Configure logging (otherwise we will only see warning and error)
-logging.basicConfig(level=logging.NOTSET, handlers=[handler])
+# # Configure logging (otherwise we will only see warning and error)
+# logging.basicConfig(level=logging.NOTSET, handlers=[handler])
 
-# Namespaced logger
-logger = logging.getLogger()
+# # Namespaced logger
+# logger = logging.getLogger()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
                                             
 app = Flask(__name__)
 
@@ -64,11 +65,11 @@ def compute_average_age():
     compute_request_count.add(1)
 
     # Extract context
-    ctx = TraceContextTextMapPropagator().extract(request_headers)
+    # ctx = TraceContextTextMapPropagator().extract(request_headers)
 
 
     # Start a new span
-    with tracer.start_as_current_spac("ComputeSpan", context=ctx):
+    with tracer.start_as_current_spac("ComputeSpan"):
         logger.info("Average compute is in progress")
         # Process the request data
         data = request.json['data']
