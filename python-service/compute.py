@@ -10,6 +10,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 # Name
 resource = Resource.create(ResourceAttributes.SERVICE_NAME:"python-service")
@@ -42,8 +43,12 @@ def compute_average_age():
     # Increment compute counter
     compute_request_count.add(1)
 
+    # Extract context
+    ctx = TraceContextTextMapPropagator().extract(request_headers)
+
+
     # Start a new span
-    with tracer.start_as_current_spac("ComputeSpan"):
+    with tracer.start_as_current_spac("ComputeSpan", context=ctx):
 
         # Process the request data
         data = request.json['data']
