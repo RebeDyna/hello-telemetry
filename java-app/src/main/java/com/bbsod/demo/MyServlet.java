@@ -32,6 +32,7 @@ public class MyServlet extends HttpServlet {
     private final Meter meter;
     prvate final LongCounter requestCounter;
     private final Tracer tracer;
+    private static final java.util.logging.Logger julLogger = Logger.getLogger(name:"jul-logger");
     
     // Constructor
     public MyServlet() {
@@ -42,6 +43,13 @@ public class MyServlet extends HttpServlet {
             .build();
 
         this.tracer = openTelemetry.getTracer(INSTRUMENTATION_NAME);
+
+        //Install OpenTelemetry logback appender
+        OpenTelemetryAppender.installer(OpenTelemetry);
+
+        //Install SL4JBridgeHandler
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
     }
 
     static OpenTelemetry initOpenTelemetry(){
@@ -74,11 +82,24 @@ public class MyServlet extends HttpServlet {
             .setResource(resource)
             .addSpanProcessor(simpleSpanProcessor)
             .build();
+
+        //Logs
+        OtlpGrcpLogRecordExporter otlpGrcpLogRecordExporter = OtlpGrcpLogRecordExporter.builder()
+            .setEndpoint(endpoint:"http://ht-otel-collector:4318")
+            .build();
+        
+        BatchLogRecordProcessor batchLogRecordProcessor = BatchLogRecordProcessor.builder(otlpGrcpLogRecordExporter).build();
+       
+        SdkLoggerProvider loggerProvider = SdkLoggerProvider.builder()
+            .setResource(resource)
+            .addLogRecordProcessor(batchLogRecordProcessor)
+            .build();
             
 
         OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
             .setMetricProvider(sdkMeterProvider)
             .setTracerProvider(sdkTracerProvider)
+            .setLoggerProvider(loggerProvider)
             .build();
 
         //Cleanup
@@ -132,6 +153,7 @@ public class MyServlet extends HttpServlet {
         String jdbcPassword = "mypassword";
 
         try {
+            julLogger.info(msg:"DB connection initiated");
             // Load MySQL JDBC Driver
             Class.forName("com.mysql.cj.jdbc.Driver");
 
