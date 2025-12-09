@@ -218,6 +218,13 @@ public class MyServlet extends HttpServlet {
             .startSpan();
 
         Context context = Context.current().with(computeSpan);
+
+        Baggage baggage = Baggage.builder()
+            .put(key:"user.id",value:"12345")
+            .put(key:"user.name",value:"john")
+            .build();
+
+        Context contextWithBaggage = Content.current().with(baggage);
         
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpPost httpPost = new HttpPost("http://ht-python-service:5000/compute_average_age");
@@ -232,6 +239,8 @@ public class MyServlet extends HttpServlet {
             // // W3CTraceContext
             // W3CTraceContextPropagator propagator = WwCTraceContextPropagator.getInstance();
             // propagator.inject(context, httpPost, HttpPost::setHeader);
+
+            W3CBaggagePropagator.getInstance().inject(contextWithBaggage, httpPost, HttpPost::setHeader);
             
             try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
                 String responseString = EntityUtils.toString(response.getEntity());
