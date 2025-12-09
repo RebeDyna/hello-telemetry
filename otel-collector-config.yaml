@@ -6,6 +6,18 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+  mysql:
+    endpoint: ht-mysql:3306
+    username: myuser
+    password: mypassword
+    database: mydatabase
+    collection_interval: 10s
+    initial_delay: 1s
+    statement_events:
+      digest_text_limit: 120
+      time_limit: 24h
+      limit: 250
+
 processors:
   batch:
 
@@ -25,7 +37,7 @@ service:
       exporters: [debug,otlp]
     
     metrics:
-      receivers: [otlp]
+      receivers: [otlp,mysql]
       processors: [batch]
       exporters: [debug]
 
